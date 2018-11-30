@@ -2,7 +2,17 @@ const Token = require("../model/Token");
 const User = require("../model/User");
 const crypto = require("crypto");
 const { signToken } = require("../helpers/signToken");
+const { gmail } = require("../config/key");
 const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
+
+var transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: gmail.email,
+    pass: gmail.password
+  }
+});
 
 module.exports = {
   test: (req, res) => {
@@ -41,8 +51,31 @@ module.exports = {
         })
           .save()
           .then(savedToken => {
-            res.send(savedToken);
             // send email token
+
+            const mailOptions = {
+              from: " yase.io <foo@example.com>", // sender address
+              to: `${user.local.email}`, // list of receivers
+              subject: "Email verification from Yase", // Subject line
+              html: `<p> Dear ${
+                user.local.name
+              }, Thank you for registering into Yase! We are stoked to have you. Kindly complete your registration by clicking on the button below to activate your account!
+              <br>
+              <a href = "http://localhost:5000/api/users/signup/confirmation/${
+                savedToken.token
+              }">Sign up</a>
+              </p>
+              ` // plain text body
+            };
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                return console.log(error);
+              }
+              res.status(200).json({
+                message:
+                  "Please activate your account, an email has been sent to you!"
+              });
+            });
           })
           .catch(err => {
             res.status(400).json(err);
@@ -91,8 +124,8 @@ module.exports = {
   },
 
   resendToken: async (req, res) => {
-    const { email } = req.body.email;
-    const user = await User.findOne({ email });
+    const { email } = req.body;
+    const user = await User.findOne({ "local.email" : email });
     if (!user)
       return res
         .status(400)
@@ -112,12 +145,48 @@ module.exports = {
       })
         .save()
         .then(savedToken => {
-          res.send(savedToken);
+
           // send email
+
+          const mailOptions = {
+            from: " yase.io", // sender address
+            to: `${email}`, // list of receivers
+            subject: "New Email Token from Yase", // Subject line
+            html: `<p> Dear ${user.local.name}, Kindly verify your account!
+            <br>
+            <a href = "http://localhost:5000/api/users/signup/confirmation/${
+              savedToken.token
+            }">Verify Account</a>
+            </p>
+            ` // plain text body
+          };
+          transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+              return console.log(error);
+            }
+            res.status(200).json({
+              message:
+                "New verification token has been sent"
+            });
+          });
         });
     });
   },
   signinLocally: async (req, res) => {
+    User.findOne;
+    const token = signToken(req.user);
+    res.status(200).json(token);
+  },
+
+  googleAuth: async (req, res) => {
+    const token = signToken(req.user);
+    res.status(200).json(token);
+  },
+  facebookAuth: async (req, res) => {
+    const token = signToken(req.user);
+    res.status(200).json(token);
+  },
+  githubAuth: async (req, res) => {
     const token = signToken(req.user);
     res.status(200).json(token);
   }
